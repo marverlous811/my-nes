@@ -10,11 +10,11 @@
 #include <map>
 #include <stdlib.h>
 
-#include "nes/bus.h"
+#include "helper/buffer.h"
 
 class CPU {
 public:
-    CPU();
+    CPU(Memory *ram);
     ~CPU();
 
 public:
@@ -45,10 +45,16 @@ public:
     void clock(); // Perform one clock cycle's worth of update
 
     bool complete();
-    // communicate action to bus
-    void connect_bus(Bus *bus) {
-        this->bus = bus;
+    uint32_t get_clock_count(){
+        return clock_count;
     }
+    // Convenience functions to access status register
+    uint8_t get_flag(FLAG f);
+    void set_flag(FLAG f, bool v);
+
+    void printfStatus();
+    void exec(uint16_t from);
+    void request_exec(uint16_t from, uint8_t req_cycle);
 
 public:
     // CPU core register
@@ -64,9 +70,6 @@ public:
     std::map<uint16_t, std::string> disassemble(uint16_t n_start, uint16_t n_stop);
 
 private:
-    // Convenience functions to access status register
-    uint8_t get_flag(FLAG f);
-    void set_flag(FLAG f, bool v);
     uint8_t read(uint16_t address);
     void write(uint16_t address, uint8_t d);
 
@@ -102,14 +105,14 @@ private:
     uint8_t XXX();
 
 private:
-    Bus *bus = nullptr;
+    Memory *ram = nullptr;
 
     uint8_t fetched         = 0x00;     // represents the working input value to the ALU
     uint16_t temp           = 0x0000;   // A convenience variable used everywhere
     uint16_t addr_abs       = 0x0000;   // All used memory addresses end up in here
     uint16_t addr_rel       = 0x0000;   // Represents absolute address following a branch
     uint8_t  opcode         = 0x00;     // Is the instruction byte
-    uint8_t cycles          = 0;        // Counts how many cycles the instruction has remaining
+    int8_t cycles          = 0;        // Counts how many cycles the instruction has remaining
     uint32_t clock_count    = 0;        // A global accumulations the number of clocks
 
     std::vector<Instruction> lookup;

@@ -6,7 +6,7 @@
 #define NES_CLOUD_NES_H
 
 #include "nes/cpu.h"
-#include "nes/bus.h"
+#include "nes/ram.h"
 
 class Nes {
 public:
@@ -14,7 +14,7 @@ public:
     ~Nes();
 
 public:
-    Bus *bus = nullptr;
+    Ram *cpuRam = nullptr;
     CPU *cpu = nullptr;
     std::map<uint16_t, std::string> mapAsm;
 

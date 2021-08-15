@@ -7,10 +7,8 @@
 #include "helper/string_helper.h"
 
 Nes::Nes() {
-    cpu = new CPU();
-    bus = new Bus();
-
-    cpu->connect_bus(bus);
+    cpuRam = new Ram(1024);
+    cpu = new CPU(cpuRam);
 }
 
 Nes::~Nes() {}
@@ -32,15 +30,4 @@ void Nes::printCPU() {
     printf("X: $%s [%s]\n", hex2str(cpu->x, 2).c_str(), std::to_string(cpu->x).c_str());
     printf("Y: $%s [%s]\n", hex2str(cpu->y, 2).c_str(), std::to_string(cpu->y).c_str());
     printf("Stack P: $%s\n", hex2str(cpu->stkp, 4).c_str());
-}
-
-void Nes::printRam(uint16_t addr, int n_rows, int n_columns) {
-    for(int row = 0; row < n_rows; row++) {
-        std::string sOffset = "$" + hex2str(addr, 4) + ":";
-        for (int col = 0; col < n_columns; col++) {
-            sOffset += " " + hex2str(bus->read(addr, true), 2);
-            addr++;
-        }
-        printf("%s\n", sOffset.c_str());
-    }
 }

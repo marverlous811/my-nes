@@ -5,7 +5,8 @@
 #include "nes/cpu.h"
 #include "helper/string_helper.h"
 
-CPU::CPU() {
+CPU::CPU(Memory *ram) {
+    this->ram = ram;
     using a = CPU;
     lookup =
     {
@@ -33,11 +34,11 @@ CPU::~CPU() {
 }
 
 void CPU::write(uint16_t address, uint8_t d) {
-    bus->write(address, d);
+    ram->write(address, d);
 }
 
 uint8_t CPU::read(uint16_t address) {
-    return bus->read(address, false);
+    return ram->read(address, false);
 }
 
 uint8_t CPU::get_flag(FLAG f) {
@@ -57,6 +58,8 @@ void CPU::clock() {
     if(cycles == 0) {
         opcode = read(pc);
         set_flag(U, true);
+        auto instruction = lookup[opcode];
+//        printf("pc: %s, operate: %s, \n", hex2str(pc, 4).c_str(), instruction.name.c_str());
         pc++;
 
         // get starting number of cyles
@@ -783,8 +786,42 @@ uint8_t CPU::XXX() {
 }
 
 // Helper
+void CPU::exec(uint16_t from) {
+    pc = from;
+    do {
+//        printf("cycles %d\n", cycles);
+        this->clock();
+    } while (!this->complete());
+}
+
+void CPU::request_exec(uint16_t from, uint8_t req_cycle){
+    pc = from;
+    do {
+//        printf("cycles %d, clock: clock_count: %d\n", cycles, clock_count);
+        this->clock();
+    } while ((clock_count - req_cycle) != 0);
+}
+
 bool CPU::complete() {
     return cycles == 0;
+}
+
+void CPU::printfStatus() {
+    printf("STATUS: ");
+    printf(this->status & CPU::N ? GRN " N " RESET : RED " N " RESET);
+    printf(this->status & CPU::V ? GRN " V " RESET : RED " V " RESET);
+    printf(this->status & CPU::U ? GRN " - " RESET : RED " - " RESET);
+    printf(this->status & CPU::B ? GRN " B " RESET : RED " B " RESET);
+    printf(this->status & CPU::D ? GRN " D " RESET : RED " D " RESET);
+    printf(this->status & CPU::I ? GRN " I " RESET : RED " I " RESET);
+    printf(this->status & CPU::Z ? GRN " Z " RESET : RED " Z " RESET);
+    printf(this->status & CPU::C ? GRN " C " RESET : RED " C " RESET);
+    printf("\n");
+    printf("PC: $%s\n", hex2str(this->pc, 4).c_str());
+    printf("A: $%s [%s]\n", hex2str(this->a, 2).c_str(), std::to_string(this->a).c_str());
+    printf("X: $%s [%s]\n", hex2str(this->x, 2).c_str(), std::to_string(this->x).c_str());
+    printf("Y: $%s [%s]\n", hex2str(this->y, 2).c_str(), std::to_string(this->y).c_str());
+    printf("Stack P: $%s\n", hex2str(this->stkp, 4).c_str());
 }
 
 std::map<uint16_t, std::string> CPU::disassemble(uint16_t n_start, uint16_t n_stop) {
@@ -797,7 +834,7 @@ std::map<uint16_t, std::string> CPU::disassemble(uint16_t n_start, uint16_t n_st
         line_addr = addr;
         std::string  sInst = "$" + hex2str(addr, 4) + ": ";
 
-        uint8_t opcode = bus->read(addr, true); addr++;
+        uint8_t opcode = ram->read(addr, true); addr++;
         sInst += lookup[opcode].name + " ";
         if (lookup[opcode].addrmode == &CPU::IMP)
         {
@@ -805,66 +842,66 @@ std::map<uint16_t, std::string> CPU::disassemble(uint16_t n_start, uint16_t n_st
         }
         else if (lookup[opcode].addrmode == &CPU::IMM)
         {
-            value = bus->read(addr, true); addr++;
+            value = ram->read(addr, true); addr++;
             sInst += "#$" + hex2str(value, 2) + " {IMM}";
         }
         else if (lookup[opcode].addrmode == &CPU::ZP0)
         {
-            lo = bus->read(addr, true); addr++;
+            lo = ram->read(addr, true); addr++;
             hi = 0x00;
             sInst += "$" + hex2str(lo, 2) + " {ZP0}";
         }
         else if (lookup[opcode].addrmode == &CPU::ZPX)
         {
-            lo = bus->read(addr, true); addr++;
+            lo = ram->read(addr, true); addr++;
             hi = 0x00;
             sInst += "$" + hex2str(lo, 2) + ", X {ZPX}";
         }
         else if (lookup[opcode].addrmode == &CPU::ZPY)
         {
-            lo = bus->read(addr, true); addr++;
+            lo = ram->read(addr, true); addr++;
             hi = 0x00;
             sInst += "$" + hex2str(lo, 2) + ", Y {ZPY}";
         }
         else if (lookup[opcode].addrmode == &CPU::IZX)
         {
-            lo = bus->read(addr, true); addr++;
+            lo = ram->read(addr, true); addr++;
             hi = 0x00;
             sInst += "($" + hex2str(lo, 2) + ", X) {IZX}";
         }
         else if (lookup[opcode].addrmode == &CPU::IZY)
         {
-            lo = bus->read(addr, true); addr++;
+            lo = ram->read(addr, true); addr++;
             hi = 0x00;
             sInst += "($" + hex2str(lo, 2) + "), Y {IZY}";
         }
         else if (lookup[opcode].addrmode == &CPU::ABS)
         {
-            lo = bus->read(addr, true); addr++;
-            hi = bus->read(addr, true); addr++;
+            lo = ram->read(addr, true); addr++;
+            hi = ram->read(addr, true); addr++;
             sInst += "$" + hex2str((uint16_t)(hi << 8) | lo, 4) + " {ABS}";
         }
         else if (lookup[opcode].addrmode == &CPU::ABX)
         {
-            lo = bus->read(addr, true); addr++;
-            hi = bus->read(addr, true); addr++;
+            lo = ram->read(addr, true); addr++;
+            hi = ram->read(addr, true); addr++;
             sInst += "$" + hex2str((uint16_t)(hi << 8) | lo, 4) + ", X {ABX}";
         }
         else if (lookup[opcode].addrmode == &CPU::ABY)
         {
-            lo = bus->read(addr, true); addr++;
-            hi = bus->read(addr, true); addr++;
+            lo = ram->read(addr, true); addr++;
+            hi = ram->read(addr, true); addr++;
             sInst += "$" + hex2str((uint16_t)(hi << 8) | lo, 4) + ", Y {ABY}";
         }
         else if (lookup[opcode].addrmode == &CPU::IND)
         {
-            lo = bus->read(addr, true); addr++;
-            hi = bus->read(addr, true); addr++;
+            lo = ram->read(addr, true); addr++;
+            hi = ram->read(addr, true); addr++;
             sInst += "($" + hex2str((uint16_t)(hi << 8) | lo, 4) + ") {IND}";
         }
         else if (lookup[opcode].addrmode == &CPU::REL)
         {
-            value = bus->read(addr, true); addr++;
+            value = ram->read(addr, true); addr++;
             sInst += "$" + hex2str(value, 2) + " [$" + hex2str(addr + value, 4) + "] {REL}";
         }
     }
