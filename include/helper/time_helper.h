@@ -5,7 +5,6 @@
 #ifndef NES_CLOUD_TIME_HELPER_H
 #define NES_CLOUD_TIME_HELPER_H
 
-#include <unistd.h>
 #include <chrono>
 #include <thread>
 
